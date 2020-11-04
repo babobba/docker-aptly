@@ -11,8 +11,11 @@ set -e
 # https://help.ubuntu.com/community/Repositories/CommandLine
 
 UBUNTU_RELEASE=focal
-UPSTREAM_URL="http://archive.ubuntu.com/ubuntu/"
-COMPONENTS=( main universe )
+AMD64_UPSTREAM_URL="http://archive.ubuntu.com/ubuntu/"
+ARM64_UPSTREAM_URL="http://ports.ubuntu.com/"
+ARCH=( amd64 arm64 )
+COMPONENTS=( main universe restricted multiverse )
+
 REPOS=( ${UBUNTU_RELEASE} ${UBUNTU_RELEASE}-updates ${UBUNTU_RELEASE}-security )
 
 # Setup gpg-agent to cache GPG passphrase for unattended operation
@@ -24,47 +27,54 @@ fi
 
 gpg-agent --homedir /root/.gnupg --daemon || true
 gpg2 --import /opt/aptly/aptly.pub
-KG=`gpg2 --list-keys --with-keygrip | awk '/rsa2048/{getline; getline; print $3}'`
+KG=$(gpg2 --list-keys --with-keygrip | awk '/rsa2048/{getline; getline; print $3}')
 echo "$GPG_PASSWORD" | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KG"
 
 # Create repository mirrors if they don't exist
 set +e
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    aptly mirror list -raw | grep "^${repo}-${component}$"
-    if [[ $? -ne 0 ]]; then
-      echo "Creating mirror of ${repo}-${component} repository."
-      aptly mirror create \
-        -architectures=amd64 ${repo}-${component} ${UPSTREAM_URL} ${repo} ${component}
-    fi
+for arch in "${ARCH[@]}"; do
+  UPSTREAM_URL="${arch^^}_UPSTREAM_URL"
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      aptly mirror list -raw | grep "^${repo}-${component}-${arch}$"
+      if [[ $? -ne 0 ]]; then
+        echo "Creating mirror of ${repo}-${component}-${arch} repository."
+        aptly mirror create \
+          -architectures=${arch} ${repo}-${component}-${arch} ${!UPSTREAM_URL} ${repo} ${component}
+      fi
+    done
   done
 done
 set -e
 
 # Update all repository mirrors
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    echo "Updating ${repo}-${component} repository mirror.."
-    aptly mirror update ${repo}-${component}
+for arch in "${ARCH[@]}"; do
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      echo "Updating ${repo}-${component}-${arch} repository mirror.."
+      aptly mirror update ${repo}-${component}-${arch}
+    done
   done
 done
 
 # Create snapshots of updated repositories
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    echo "Creating snapshot of ${repo}-${component} repository mirror.."
-    SNAPSHOTARRAY+="${repo}-${component}-`date +%Y%m%d%H%M` "
-    aptly snapshot create ${repo}-${component}-`date +%Y%m%d%H%M` from mirror ${repo}-${component}
+for arch in "${ARCH[@]}"; do
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      echo "Creating snapshot of ${repo}-${component}-${arch} repository mirror.."
+      SNAPSHOTARRAY+="${repo}-${component}-${arch}-`date +%Y%m%d%H%M` "
+      aptly snapshot create ${repo}-${component}-${arch}-`date +%Y%m%d%H%M` from mirror ${repo}-${component}-${arch}
+    done
   done
 done
 
-echo ${SNAPSHOTARRAY[@]}
+echo "${SNAPSHOTARRAY[@]}"
 
 # Merge snapshots into a single snapshot with updates applied
 echo "Merging snapshots into one.." 
 aptly snapshot merge -latest                 \
   ${UBUNTU_RELEASE}-merged-`date +%Y%m%d%H%M`  \
-  ${SNAPSHOTARRAY[@]}
+  "${SNAPSHOTARRAY[@]}"
 
 # Publish the latest merged snapshot
 set +e

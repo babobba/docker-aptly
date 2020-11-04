@@ -10,7 +10,7 @@ set -e
 
 DEBIAN_RELEASE=buster
 UPSTREAM_URL="http://deb.debian.org/debian/"
-COMPONENTS=( main )
+COMPONENTS=( main contrib non-free )
 REPOS=( ${DEBIAN_RELEASE} ${DEBIAN_RELEASE}-updates )
 
 # Setup gpg-agent to cache GPG passphrase for unattended operation
@@ -27,42 +27,49 @@ echo "$GPG_PASSWORD" | /usr/lib/gnupg2/gpg-preset-passphrase --preset "$KG"
 
 # Create repository mirrors if they don't exist
 set +e
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    aptly mirror list -raw | grep "^${repo}$"
-    if [[ $? -ne 0 ]]; then
-      echo "Creating mirror of ${repo} repository."
-      aptly mirror create \
-        -architectures=amd64 ${repo} ${UPSTREAM_URL} ${repo} ${component}
-    fi
+for arch in "${ARCH[@]}"; do
+  UPSTREAM_URL="${arch^^}_UPSTREAM_URL"
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      aptly mirror list -raw | grep "^${repo}-${component}-${arch}$"
+      if [[ $? -ne 0 ]]; then
+        echo "Creating mirror of ${repo}-${component}-${arch} repository."
+        aptly mirror create \
+          -architectures=${arch} ${repo}-${component}-${arch} ${!UPSTREAM_URL} ${repo} ${component}
+      fi
+    done
   done
 done
 set -e
 
 # Update all repository mirrors
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    echo "Updating ${repo} repository mirror.."
-    aptly mirror update ${repo}
+for arch in "${ARCH[@]}"; do
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      echo "Updating ${repo}-${component}-${arch} repository mirror.."
+      aptly mirror update ${repo}-${component}-${arch}
+    done
   done
 done
 
 # Create snapshots of updated repositories
-for component in ${COMPONENTS[@]}; do
-  for repo in ${REPOS[@]}; do
-    echo "Creating snapshot of ${repo} repository mirror.."
-    SNAPSHOTARRAY+="${repo}-`date +%Y%m%d%H%M` "
-    aptly snapshot create ${repo}-`date +%Y%m%d%H%M` from mirror ${repo}
+for arch in "${ARCH[@]}"; do
+  for component in "${COMPONENTS[@]}"; do
+    for repo in "${REPOS[@]}"; do
+      echo "Creating snapshot of ${repo}-${component}-${arch} repository mirror.."
+      SNAPSHOTARRAY+="${repo}-${component}-${arch}-`date +%Y%m%d%H%M` "
+      aptly snapshot create ${repo}-${component}-${arch}-`date +%Y%m%d%H%M` from mirror ${repo}-${component}-${arch}
+    done
   done
 done
 
-echo ${SNAPSHOTARRAY[@]}
+echo "${SNAPSHOTARRAY[@]}"
 
 # Merge snapshots into a single snapshot with updates applied
 echo "Merging snapshots into one.." 
 aptly snapshot merge -latest                 \
   ${DEBIAN_RELEASE}-merged-`date +%Y%m%d%H%M`  \
-  ${SNAPSHOTARRAY[@]}
+  "${SNAPSHOTARRAY[@]}"
 
 # Publish the latest merged snapshot
 set +e
