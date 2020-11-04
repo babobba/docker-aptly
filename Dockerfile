@@ -20,11 +20,10 @@ ENV RELEASE=focal
 
 # Install gnupg2
 RUN apt-get -q update && \
-apt-get -y install aptly 
-                   gnupg2           \
+apt-get -y install aptly           \
+                   gnupg2          \
                    bash-completion \
                    bzip2           \
-                   gnupg2          \
                    gpgv            \
                    graphviz        \
                    supervisor      \
