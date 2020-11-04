@@ -18,6 +18,10 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV DIST=ubuntu
 ENV RELEASE=focal
 
+# Add Aptly repository
+RUN echo "deb http://repo.aptly.info/ squeeze main" > /etc/apt/sources.list.d/aptly.list
+RUN apt-key adv --no-tty --keyserver pool.sks-keyservers.net --recv-keys ED75B5A4483DA07C
+
 # Install gnupg2
 RUN apt-get -q update && \
 apt-get -y install aptly           \
