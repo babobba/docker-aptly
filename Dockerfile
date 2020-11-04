@@ -21,32 +21,19 @@ ENV DIST=ubuntu
 ENV RELEASE=focal
 
 # Install gnupg2
-RUN apt-get -q update && apt-get -y install gnupg2
-
-# Add Aptly repository
-RUN echo "deb http://repo.aptly.info/ squeeze main" > /etc/apt/sources.list.d/aptly.list
-RUN apt-key adv --no-tty --keyserver pool.sks-keyservers.net --recv-keys ED75B5A4483DA07C
-
-# Add Nginx repository
-RUN echo "deb http://nginx.org/packages/$DIST/ $RELEASE nginx" > /etc/apt/sources.list.d/nginx.list
-RUN echo "deb-src http://nginx.org/packages/$DIST/ $RELEASE nginx" >> /etc/apt/sources.list.d/nginx.list
-RUN apt-key adv --no-tty --keyserver pool.sks-keyservers.net --recv-keys 573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62
-
-# Update APT repository
-RUN apt-get -q update
-
-# Update APT repository and install packages
-RUN apt-get -y install aptly           \
-                       bash-completion \
-                       bzip2           \
-                       gnupg2          \
-                       gpgv            \
-                       graphviz        \
-                       supervisor      \
-                       nginx           \
-                       wget            \
-                       xz-utils        \
-                       vim-tiny
+RUN apt-get -q update && \
+apt-get -y install aptly 
+                   gnupg2           \
+                   bash-completion \
+                   bzip2           \
+                   gnupg2          \
+                   gpgv            \
+                   graphviz        \
+                   supervisor      \
+                   nginx           \
+                   wget            \
+                   xz-utils        \
+                   vim-tiny
 
 # Install Aptly Configuration
 COPY assets/aptly.conf /etc/aptly.conf
