@@ -14,8 +14,6 @@
 
 FROM ubuntu:focal
 
-MAINTAINER bryan@turbojets.net
-
 ENV DEBIAN_FRONTEND noninteractive
 ENV DIST=ubuntu
 ENV RELEASE=focal
