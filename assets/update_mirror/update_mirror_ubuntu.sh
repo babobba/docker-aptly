@@ -68,13 +68,13 @@ for arch in "${ARCH[@]}"; do
   done
 done
 
-echo "${SNAPSHOTARRAY[@]}"
+echo ${SNAPSHOTARRAY[@]}
 
 # Merge snapshots into a single snapshot with updates applied
 echo "Merging snapshots into one.." 
 aptly snapshot merge -latest                 \
   ${UBUNTU_RELEASE}-merged-`date +%Y%m%d%H%M`  \
-  "${SNAPSHOTARRAY[@]}"
+  ${SNAPSHOTARRAY[@]}
 
 # Publish the latest merged snapshot
 set +e
